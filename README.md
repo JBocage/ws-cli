@@ -13,25 +13,31 @@ ws open              # sans nom → picker fzf avec preview
 
 ## Installation
 
+Le plus simple — installe l'exécutable **et** la complétion bash en une commande :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JBocage/ws-cli/main/install.sh | bash
+```
+
+Le script télécharge `ws.py`, pose un symlink `ws` dans `~/.local/bin`, installe la
+complétion dans `~/.local/share/bash-completion/completions/ws` et vérifie le `PATH`.
+Ouvrez ensuite un nouveau shell. (Comme pour tout `curl | bash`, inspectez le script
+avant si vous le souhaitez.)
+
+Depuis un clone (pour bidouiller / contribuer) — même script, utilise le `ws.py` local :
+
 ```bash
 git clone https://github.com/JBocage/ws-cli.git && cd ws-cli
 ./install.sh
 ```
 
-`install.sh` pose un symlink `ws` dans `~/.local/bin`, installe la complétion bash
-dans `~/.local/share/bash-completion/completions/ws`, et vérifie le `PATH`.
-Ouvrez ensuite un nouveau shell.
-
-Alternative (machines avec `uv` ou `pipx`) :
+Via `uv` ou `pipx` (n'installe que l'exécutable ; la complétion se pose ensuite) :
 
 ```bash
 uv tool install git+https://github.com/JBocage/ws-cli
 # ou : pipx install git+https://github.com/JBocage/ws-cli
-ws completion install        # pose la complétion bash (uv/pipx ne le font pas)
+ws completion install
 ```
-
-`uv tool install` n'installe que l'exécutable : lancez `ws completion install`
-une fois pour activer l'autocomplétion bash, puis ouvrez un nouveau shell.
 
 Aucune dépendance tierce au runtime — Python 3.10+ et la stdlib suffisent.
 La sortie de `ws list`/`ws show` est colorée en terminal (désactivable via `NO_COLOR=1`).
@@ -39,9 +45,10 @@ La sortie de `ws list`/`ws show` est colorée en terminal (désactivable via `NO
 ### Désinstallation
 
 ```bash
-./uninstall.sh        # retire le symlink + la complétion, puis DEMANDE
-                      # si vous voulez aussi supprimer vos workspaces/métadonnées
-                      # (--purge pour forcer en non-interactif)
+curl -fsSL https://raw.githubusercontent.com/JBocage/ws-cli/main/uninstall.sh | bash
+# depuis un clone : ./uninstall.sh
+# pour supprimer AUSSI vos workspaces/métadonnées : ajoutez --purge
+#   (curl … | bash -s -- --purge)
 ```
 
 Installé via uv : `uv tool uninstall ws-vscode`.
