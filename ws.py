@@ -769,70 +769,10 @@ def _workspace_rows():
         yield name, path, obj, idx.get(name, {})
 
 
-def cmd_list(args) -> int:
-    rows = []
-    for name, path, obj, meta in _workspace_rows():
-        tags = meta.get("tags", []) or []
-        if args.tag and args.tag not in tags:
-            continue
-        paths = folder_paths(obj, path) if obj is not None else None
-        rows.append({
-            "name": name,
-            "tags": tags,
-            "folders": paths,
-            "n_folders": len(paths) if paths is not None else None,
-            "description": meta.get("description", ""),
-        })
-
-    if args.json:
-        print(json.dumps(rows, ensure_ascii=False, indent=2))
-        return EXIT_OK
-
-    if not rows:
-        print("No workspaces." + (f" (tag filter={args.tag})" if args.tag else ""))
-        return EXIT_OK
-
-    name_w = max(len("NAME"), max(len(r["name"]) for r in rows))
-    tags_w = max(len("TAGS"), max(len(",".join(r["tags"])) for r in rows))
-    col = _use_color()
-    header = f"{'NAME':<{name_w}}  {'TAGS':<{tags_w}}  {'#':>3}  DESCRIPTION"
-    print(paint(header, "dim", enabled=col))
-    for r in rows:
-        n = "?" if r["n_folders"] is None else str(r["n_folders"])
-        # pad BEFORE coloring to keep alignment intact
-        name_cell = paint(f"{r['name']:<{name_w}}", "cyan", "bold", enabled=col)
-        tags_cell = paint(f"{','.join(r['tags']):<{tags_w}}", "yellow", enabled=col)
-        print(f"{name_cell}  {tags_cell}  {n:>3}  {r['description']}")
-        if args.verbose and r["folders"]:
-            for p in r["folders"]:
-                if os.path.isdir(p):
-                    print(f"    {p}")
-                else:
-                    print(f"    {paint(p + '  (missing)', 'red', enabled=col)}")
-    return EXIT_OK
-
-
-def cmd_show(args) -> int:
-    path, _, obj = read_workspace(args.name)
-    idx = load_index()
-    meta = idx.get(args.name, {})
+def _render_show(name: str, path: Path, obj: dict, meta: dict, col: bool) -> None:
+    """Human-readable details of one workspace (shared by `show` and `list -vv`)."""
     paths = folder_paths(obj, path)
-
-    if args.json:
-        out = {
-            "name": args.name,
-            "path": str(path),
-            "folders": paths,
-            "description": meta.get("description", ""),
-            "tags": meta.get("tags", []),
-            "created": meta.get("created"),
-            "last_opened": meta.get("last_opened"),
-        }
-        print(json.dumps(out, ensure_ascii=False, indent=2))
-        return EXIT_OK
-
-    col = _use_color()
-    print(paint(args.name, "cyan", "bold", enabled=col))
+    print(paint(name, "cyan", "bold", enabled=col))
     print(f"  file        : {path}")
     if meta.get("description"):
         print(f"  description : {meta['description']}")
@@ -848,6 +788,84 @@ def cmd_show(args) -> int:
             print(f"    - {p}")
         else:
             print(f"    - {paint(p + '  (missing)', 'red', enabled=col)}")
+
+
+def cmd_list(args) -> int:
+    items = []
+    for name, path, obj, meta in _workspace_rows():
+        tags = meta.get("tags", []) or []
+        if args.tag and args.tag not in tags:
+            continue
+        paths = folder_paths(obj, path) if obj is not None else None
+        items.append((name, path, obj, meta, tags, paths))
+
+    if args.json:
+        out = [{
+            "name": name,
+            "tags": tags,
+            "folders": paths,
+            "n_folders": len(paths) if paths is not None else None,
+            "description": meta.get("description", ""),
+        } for (name, path, obj, meta, tags, paths) in items]
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return EXIT_OK
+
+    if not items:
+        print("No workspaces." + (f" (tag filter={args.tag})" if args.tag else ""))
+        return EXIT_OK
+
+    col = _use_color()
+
+    # -vv : render each workspace like `ws show`
+    if args.verbose >= 2:
+        for k, (name, path, obj, meta, tags, paths) in enumerate(items):
+            if k:
+                print()
+            if obj is None:
+                print(paint(name, "cyan", "bold", enabled=col))
+                print("  (unreadable file)")
+            else:
+                _render_show(name, path, obj, meta, col)
+        return EXIT_OK
+
+    name_w = max([len("NAME")] + [len(it[0]) for it in items])
+    tags_w = max([len("TAGS")] + [len(",".join(it[4])) for it in items])
+    header = f"{'NAME':<{name_w}}  {'TAGS':<{tags_w}}  {'#':>3}  DESCRIPTION"
+    print(paint(header, "dim", enabled=col))
+    for (name, path, obj, meta, tags, paths) in items:
+        n = "?" if paths is None else str(len(paths))
+        # pad BEFORE coloring to keep alignment intact
+        name_cell = paint(f"{name:<{name_w}}", "cyan", "bold", enabled=col)
+        tags_cell = paint(f"{','.join(tags):<{tags_w}}", "yellow", enabled=col)
+        print(f"{name_cell}  {tags_cell}  {n:>3}  {meta.get('description', '')}")
+        if args.verbose >= 1 and paths:  # -v : show paths under each row
+            for p in paths:
+                if os.path.isdir(p):
+                    print(f"    {p}")
+                else:
+                    print(f"    {paint(p + '  (missing)', 'red', enabled=col)}")
+    return EXIT_OK
+
+
+def cmd_show(args) -> int:
+    path, _, obj = read_workspace(args.name)
+    idx = load_index()
+    meta = idx.get(args.name, {})
+
+    if args.json:
+        out = {
+            "name": args.name,
+            "path": str(path),
+            "folders": folder_paths(obj, path),
+            "description": meta.get("description", ""),
+            "tags": meta.get("tags", []),
+            "created": meta.get("created"),
+            "last_opened": meta.get("last_opened"),
+        }
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return EXIT_OK
+
+    _render_show(args.name, path, obj, meta, _use_color())
     return EXIT_OK
 
 
@@ -1214,7 +1232,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("list", help="list workspaces")
     sp.add_argument("--tag", help="filter by tag")
     sp.add_argument("--json", action="store_true")
-    sp.add_argument("-v", "--verbose", action="store_true", help="show paths")
+    sp.add_argument("-v", "--verbose", action="count", default=0,
+                    help="-v: show paths; -vv: full details (like `ws show`)")
     sp.set_defaults(func=cmd_list)
 
     sp = sub.add_parser("show", help="workspace details")

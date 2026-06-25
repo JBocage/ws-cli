@@ -141,6 +141,26 @@ def test_list_and_json(home, run, mkdirs):
     assert names["alpha"]["tags"] == ["x"]
 
 
+def test_list_v_shows_paths(home, run, mkdirs):
+    (a,) = mkdirs("a")
+    run("new", "proj", a)
+    code, out, err = run("list", "-v")
+    assert code == 0
+    assert a in out                      # path shown under the row
+    assert "file        :" not in out    # -v is not the full `show` rendering
+
+
+def test_list_vv_renders_like_show(home, run, mkdirs):
+    (a,) = mkdirs("a")
+    run("new", "proj", a, "--desc", "D", "--tag", "ml")
+    code, out, err = run("list", "-vv")
+    assert code == 0
+    assert "file        :" in out        # full `show`-style details
+    assert "description : D" in out
+    assert "folders (1):" in out
+    assert a in out
+
+
 def test_list_filter_tag(home, run, mkdirs):
     (a,) = mkdirs("a")
     run("new", "alpha", a, "--tag", "x")

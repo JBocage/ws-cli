@@ -64,7 +64,7 @@ curl -fsSL https://raw.githubusercontent.com/JBocage/ws-cli/main/uninstall.sh | 
 |---|---|
 | `ws new <name> <dir…>` | create a workspace (`--desc`, `--tag`, `--open`, `--force`) |
 | `ws open [name]` | open (no name → fzf); `-n` new window, `-r` reuse |
-| `ws list` | list (`--tag`, `--json`, `-v` paths) |
+| `ws list` | list (`--tag`, `--json`, `-v` paths, `-vv` full details) |
 | `ws show <name>` | details (`--json`) |
 | `ws edit <name>` | open the `.code-workspace` in `$EDITOR` (default `code -r`) |
 | `ws add <name> <dir…>` | add folders (dedup, `--force`) |
