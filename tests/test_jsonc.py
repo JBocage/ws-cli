@@ -1,4 +1,4 @@
-"""Cœur JSONC : lecture tolérante + édition chirurgicale de `folders`."""
+"""JSONC core: tolerant reading + surgical editing of `folders`."""
 import json
 
 import ws
@@ -32,18 +32,18 @@ def test_parse_jsonc_comma_inside_string_preserved():
 def test_splice_preserves_comments_and_settings():
     src = (
         "{\n"
-        "  // mon commentaire\n"
+        "  // my comment\n"
         '  "folders": [\n'
         '    { "path": "/old" }\n'
         "  ],\n"
-        '  "settings": { "editor.tabSize": 2 }, // garde\n'
+        '  "settings": { "editor.tabSize": 2 }, // keep\n'
         '  "extensions": { "recommendations": ["x"] }\n'
         "}\n"
     )
     out = ws.splice_folders(src, [{"path": "/new1"}, {"path": "/new2"}])
-    assert "// mon commentaire" in out
+    assert "// my comment" in out
     assert '"editor.tabSize": 2' in out
-    assert "// garde" in out
+    assert "// keep" in out
     assert '"recommendations": ["x"]' in out
     assert "/old" not in out
     obj = ws.parse_jsonc(out)
@@ -63,7 +63,7 @@ def test_splice_preserves_per_folder_name():
 
 
 def test_splice_does_not_touch_nested_folders_key():
-    # une clé "folders" imbriquée dans settings ne doit pas être ciblée
+    # a "folders" key nested inside settings must not be targeted
     src = (
         "{\n"
         '  "folders": [ {"path": "/real"} ],\n'

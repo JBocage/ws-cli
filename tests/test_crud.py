@@ -10,14 +10,14 @@ def _index(home):
 
 def test_new_creates_file_and_index(home, run, mkdirs):
     (a,) = mkdirs("a")
-    code, out, err = run("new", "proj", a, "--desc", "ma desc", "--tag", "x", "--tag", "y")
+    code, out, err = run("new", "proj", a, "--desc", "my desc", "--tag", "x", "--tag", "y")
     assert code == 0
     wsfile = home / "workspaces" / "proj.code-workspace"
     assert wsfile.is_file()
     obj = json.loads(wsfile.read_text())
     assert obj["folders"] == [{"path": a}]
     idx = _index(home)
-    assert idx["proj"]["description"] == "ma desc"
+    assert idx["proj"]["description"] == "my desc"
     assert idx["proj"]["tags"] == ["x", "y"]
     assert "created" in idx["proj"]
 
@@ -62,7 +62,7 @@ def test_new_dedup_and_resolve(home, run, mkdirs, monkeypatch):
 def test_add_dedup(home, run, mkdirs):
     a, b = mkdirs("a", "b")
     run("new", "proj", a)
-    run("add", "proj", b, a)  # a déjà présent
+    run("add", "proj", b, a)  # a already present
     obj = json.loads((home / "workspaces" / "proj.code-workspace").read_text())
     assert [f["path"] for f in obj["folders"]] == [a, b]
 
@@ -79,10 +79,10 @@ def test_rm_folder(home, run, mkdirs):
 def test_set_metadata(home, run, mkdirs):
     (a,) = mkdirs("a")
     run("new", "proj", a)
-    run("set", "proj", "--desc", "nouvelle", "--add-tag", "ml", "--add-tag", "infra")
+    run("set", "proj", "--desc", "new one", "--add-tag", "ml", "--add-tag", "infra")
     run("set", "proj", "--rm-tag", "ml")
     idx = _index(home)
-    assert idx["proj"]["description"] == "nouvelle"
+    assert idx["proj"]["description"] == "new one"
     assert idx["proj"]["tags"] == ["infra"]
 
 

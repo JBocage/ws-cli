@@ -1,104 +1,103 @@
-# `ws` — gestionnaire de workspaces VSCode en CLI
+# `ws` — CLI manager for VSCode workspaces
 
-Crée, administre et ouvre des **workspaces multi-dossiers VSCode** en une commande,
-avec autocomplétion bash. Un workspace `ws` = un fichier `.code-workspace` natif
-(source de vérité) + une entrée de métadonnées.
+Create, manage and open **multi-folder VSCode workspaces** in one command, with
+bash completion. A `ws` workspace = a native `.code-workspace` file (source of
+truth) + a metadata entry.
 
 ```bash
 ws new platform ~/dev/platform-api ~/dev/platform-infra --tag infra --desc "API + infra"
-ws open platform     # une seule fenêtre VSCode, les deux dossiers
-ws list              # NOM  TAGS  #DOSSIERS  DESCRIPTION
-ws open              # sans nom → picker fzf avec preview
+ws open platform     # a single VSCode window, both folders
+ws list              # NAME  TAGS  #FOLDERS  DESCRIPTION
+ws open              # no name → fzf picker with preview
 ```
 
 ## Installation
 
-Le plus simple — installe l'exécutable **et** la complétion bash en une commande :
+Simplest — installs the executable **and** bash completion in one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JBocage/ws-cli/main/install.sh | bash
 ```
 
-Le script télécharge `ws.py`, pose un symlink `ws` dans `~/.local/bin`, installe la
-complétion dans `~/.local/share/bash-completion/completions/ws` et vérifie le `PATH`.
-Ouvrez ensuite un nouveau shell. (Comme pour tout `curl | bash`, inspectez le script
-avant si vous le souhaitez.)
+The script downloads `ws.py`, creates a `ws` symlink in `~/.local/bin`, installs the
+completion into `~/.local/share/bash-completion/completions/ws`, and checks your `PATH`.
+Then open a new shell. (As with any `curl | bash`, inspect the script first if you like.)
 
-Depuis un clone (pour bidouiller / contribuer) — même script, utilise le `ws.py` local :
+From a clone (to hack / contribute) — same script, uses the local `ws.py`:
 
 ```bash
 git clone https://github.com/JBocage/ws-cli.git && cd ws-cli
 ./install.sh
 ```
 
-Via `uv` ou `pipx` (n'installe que l'exécutable ; la complétion se pose ensuite) :
+Via `uv` or `pipx` (installs the executable only; completion is set up afterwards):
 
 ```bash
 uv tool install git+https://github.com/JBocage/ws-cli
-# ou : pipx install git+https://github.com/JBocage/ws-cli
+# or: pipx install git+https://github.com/JBocage/ws-cli
 ws completion install
 ```
 
-Aucune dépendance tierce au runtime — Python 3.10+ et la stdlib suffisent.
-La sortie de `ws list`/`ws show` est colorée en terminal (désactivable via `NO_COLOR=1`).
+No third-party runtime dependency — Python 3.10+ and the stdlib are enough.
+`ws list`/`ws show` output is colored in a terminal (disable with `NO_COLOR=1`).
 
-### Désinstallation
+### Uninstall
 
 ```bash
-ws uninstall            # retire l'exécutable + la complétion ; demande pour vos données
-ws uninstall --purge    # retire aussi vos workspaces et métadonnées
+ws uninstall            # removes the executable + completion; asks about your data
+ws uninstall --purge    # also removes your workspaces and metadata
 ```
 
-`ws uninstall` détecte le mode d'installation : pour une install `uv`/`pipx`, il vous
-renvoie vers `uv tool uninstall ws-vscode` (resp. `pipx uninstall ws-vscode`).
+`ws uninstall` detects the install method: for a `uv`/`pipx` install it points you to
+`uv tool uninstall ws-vscode` (resp. `pipx uninstall ws-vscode`).
 
-Si `ws` n'est plus exécutable, le script reste disponible :
+If `ws` is no longer runnable, the script is still available:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JBocage/ws-cli/main/uninstall.sh | bash
-# (ou ./uninstall.sh depuis un clone ; --purge pour supprimer aussi vos données)
+# (or ./uninstall.sh from a clone; --purge to also delete your data)
 ```
 
-## Commandes
+## Commands
 
-| Commande | Description |
+| Command | Description |
 |---|---|
-| `ws new <nom> <dir…>` | crée un workspace (`--desc`, `--tag`, `--open`, `--force`) |
-| `ws open [nom]` | ouvre (sans nom → fzf) ; `-n` nouvelle fenêtre, `-r` réutilise |
-| `ws list` | liste (`--tag`, `--json`, `-v` chemins) |
-| `ws show <nom>` | détail (`--json`) |
-| `ws edit <nom>` | ouvre le `.code-workspace` dans `$EDITOR` (défaut `code -r`) |
-| `ws add <nom> <dir…>` | ajoute des dossiers (dédup, `--force`) |
-| `ws rm-folder <nom> <dir…>` | retire des dossiers |
-| `ws set <nom>` | métadonnées (`--desc`, `--add-tag`, `--rm-tag`) |
-| `ws rename <old> <new>` | renomme |
-| `ws delete <nom>` | supprime (`-y`) |
-| `ws path <nom>` | imprime le chemin du `.code-workspace` |
-| `ws completion bash` | imprime le script de complétion |
+| `ws new <name> <dir…>` | create a workspace (`--desc`, `--tag`, `--open`, `--force`) |
+| `ws open [name]` | open (no name → fzf); `-n` new window, `-r` reuse |
+| `ws list` | list (`--tag`, `--json`, `-v` paths) |
+| `ws show <name>` | details (`--json`) |
+| `ws edit <name>` | open the `.code-workspace` in `$EDITOR` (default `code -r`) |
+| `ws add <name> <dir…>` | add folders (dedup, `--force`) |
+| `ws rm-folder <name> <dir…>` | remove folders |
+| `ws set <name>` | metadata (`--desc`, `--add-tag`, `--rm-tag`) |
+| `ws rename <old> <new>` | rename |
+| `ws delete <name>` | delete (`-y`) |
+| `ws path <name>` | print the `.code-workspace` path |
+| `ws completion bash` | print the completion script |
+| `ws uninstall` | uninstall ws (`--purge` to also remove your data) |
 
-Codes de sortie : `0` ok, `1` erreur, `2` mauvais usage, `3` introuvable, `4` déjà existant.
+Exit codes: `0` ok, `1` error, `2` misuse, `3` not found, `4` already exists.
 
-## Stockage
+## Storage
 
 ```
-$XDG_CONFIG_HOME/ws/            (défaut ~/.config/ws, override $WS_HOME)
-├── workspaces/<nom>.code-workspace   # source de vérité (existence + dossiers)
-└── index.json                        # métadonnées (desc, tags, dates)
+$XDG_CONFIG_HOME/ws/            (default ~/.config/ws, override with $WS_HOME)
+├── workspaces/<name>.code-workspace   # source of truth (existence + folders)
+└── index.json                         # metadata (desc, tags, dates)
 ```
 
-Le dossier `workspaces/` prime : un `.code-workspace` créé depuis VSCode apparaît
-automatiquement ; une entrée d'index sans fichier est **ignorée à l'affichage** mais
-**conservée** (jamais détruite par une commande sans rapport — sécurité des données).
-`ws` n'édite **que** la clé `folders` du fichier — vos `settings`, `extensions`,
-`launch` et commentaires sont préservés.
+The `workspaces/` directory wins: a `.code-workspace` created from VSCode shows up
+automatically; an index entry with no file is **ignored at display time** but **kept**
+(never destroyed by an unrelated command — data safety). `ws` edits **only** the
+`folders` key of the file — your `settings`, `extensions`, `launch` and comments are
+preserved.
 
-Robustesse : écritures atomiques (`fsync` + `rename`), sauvegarde `index.json.bak`
-restaurée automatiquement si `index.json` est corrompu, et verrou inter-processus
-pour les écritures concurrentes.
+Robustness: atomic writes (`fsync` + `rename`), an `index.json.bak` backup restored
+automatically if `index.json` is corrupt, and an inter-process lock for concurrent writes.
 
-## Développement
+## Development
 
 ```bash
-pip install -e ".[dev]"   # ou: uv pip install pytest
+pip install -e ".[dev]"   # or: uv pip install pytest
 pytest
 ```

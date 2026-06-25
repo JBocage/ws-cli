@@ -1,4 +1,4 @@
-"""`open` : argv passé à `code`, flags -n/-r, mise à jour de last_opened."""
+"""`open`: argv passed to `code`, -n/-r flags, last_opened update."""
 import json
 
 import ws

@@ -1,4 +1,4 @@
-"""Fixtures de test : $WS_HOME isolé + helper d'invocation in-process."""
+"""Test fixtures: isolated $WS_HOME + in-process invocation helper."""
 import sys
 from pathlib import Path
 
@@ -10,7 +10,7 @@ import ws  # noqa: E402
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    """Isole le stockage dans un WS_HOME temporaire et neutralise XDG."""
+    """Isolate storage in a temporary WS_HOME and neutralize XDG."""
     h = tmp_path / "wshome"
     monkeypatch.setenv("WS_HOME", str(h))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdgdata"))
@@ -23,11 +23,11 @@ def home(tmp_path, monkeypatch):
 
 @pytest.fixture
 def run(capsys):
-    """Invoque le CLI in-process ; retourne (code, stdout, stderr)."""
+    """Invoke the CLI in-process; returns (code, stdout, stderr)."""
     def _run(*args):
         try:
             code = ws.main([str(a) for a in args])
-        except SystemExit as exc:  # argparse → erreurs d'usage
+        except SystemExit as exc:  # argparse → usage errors
             code = exc.code if isinstance(exc.code, int) else 1
         out = capsys.readouterr()
         return code, out.out, out.err
@@ -36,7 +36,7 @@ def run(capsys):
 
 @pytest.fixture
 def mkdirs(tmp_path):
-    """Crée des dossiers réels et renvoie leurs chemins absolus."""
+    """Create real folders and return their absolute paths."""
     def _mk(*names):
         paths = []
         for n in names:

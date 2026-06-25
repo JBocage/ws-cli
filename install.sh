@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Installe `ws`. Deux modes :
-#   - depuis un clone   : ./install.sh           (symlink vers le ws.py local)
-#   - via curl | bash   : curl -fsSL <raw>/install.sh | bash   (télécharge ws.py)
-# Options : --force (écrase un ws existant non géré par ce script)
+# Install `ws`. Two modes:
+#   - from a clone   : ./install.sh           (symlink to the local ws.py)
+#   - via curl | bash: curl -fsSL <raw>/install.sh | bash   (downloads ws.py)
+# Options: --force (overwrite an existing ws not managed by this script)
 set -euo pipefail
 
 REPO="JBocage/ws-cli"
@@ -12,31 +12,31 @@ RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 COMP_DIR="${DATA_DIR}/bash-completion/completions"
-LIB_DIR="${DATA_DIR}/ws-cli"          # emplacement de ws.py en mode distant
+LIB_DIR="${DATA_DIR}/ws-cli"          # where ws.py lives in remote mode
 
 FORCE=0
 [ "${1:-}" = "--force" ] && FORCE=1
 
-# --- prérequis ------------------------------------------------------------- #
+# --- prerequisites --------------------------------------------------------- #
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "✗ python3 introuvable (Python 3.10+ requis)." >&2
+    echo "✗ python3 not found (Python 3.10+ required)." >&2
     exit 1
 fi
 if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
-    echo "✗ Python 3.10+ requis (trouvé : $(python3 --version 2>&1))." >&2
+    echo "✗ Python 3.10+ required (found: $(python3 --version 2>&1))." >&2
     exit 1
 fi
 
 mkdir -p "$BIN_DIR" "$COMP_DIR"
 TARGET="$BIN_DIR/ws"
 
-# refuse d'écraser un ws non géré par ce script (sauf --force)
+# refuse to overwrite a ws not managed by this script (unless --force)
 if [ -e "$TARGET" ] && [ ! -L "$TARGET" ] && [ "$FORCE" != 1 ]; then
-    echo "✗ $TARGET existe déjà (fichier, pas un symlink). Relancez avec --force." >&2
+    echo "✗ $TARGET already exists (a file, not a symlink). Re-run with --force." >&2
     exit 1
 fi
 
-# --- source : clone local sinon téléchargement ----------------------------- #
+# --- source: local clone, otherwise download ------------------------------- #
 SELF="${BASH_SOURCE[0]:-}"
 SCRIPT_DIR=""
 if [ -n "$SELF" ] && [ "$SELF" != "bash" ] && [ "$SELF" != "/dev/stdin" ]; then
@@ -45,9 +45,9 @@ fi
 
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/ws.py" ]; then
     SRC="$SCRIPT_DIR/ws.py"
-    echo "→ Installation depuis le dépôt local ($SRC)"
+    echo "→ Installing from local clone ($SRC)"
 else
-    echo "→ Téléchargement de ws depuis github.com/$REPO …"
+    echo "→ Downloading ws from github.com/$REPO …"
     mkdir -p "$LIB_DIR"
     fetch() {  # fetch URL DEST
         if command -v curl >/dev/null 2>&1; then
@@ -55,7 +55,7 @@ else
         elif command -v wget >/dev/null 2>&1; then
             wget -qO "$2" "$1"
         else
-            echo "✗ curl ou wget requis pour l'installation distante." >&2
+            echo "✗ curl or wget required for remote installation." >&2
             exit 1
         fi
     }
@@ -69,23 +69,23 @@ chmod +x "$SRC"
 ln -sf "$SRC" "$TARGET"
 echo "✓ ws → $TARGET"
 
-# --- complétion bash ------------------------------------------------------- #
+# --- bash completion ------------------------------------------------------- #
 "$SRC" completion bash > "$COMP_DIR/ws"
-echo "✓ complétion bash → $COMP_DIR/ws"
+echo "✓ bash completion → $COMP_DIR/ws"
 
 # --- PATH ------------------------------------------------------------------ #
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *)
-        echo "⚠ $BIN_DIR n'est pas dans le PATH."
-        echo "  Ajoutez à votre ~/.bashrc : export PATH=\"\$HOME/.local/bin:\$PATH\""
+        echo "⚠ $BIN_DIR is not in your PATH."
+        echo "  Add to your ~/.bashrc: export PATH=\"\$HOME/.local/bin:\$PATH\""
         ;;
 esac
 
 echo
-echo "Terminé. Ouvrez un nouveau shell (ou : source \"$COMP_DIR/ws\")."
+echo "Done. Open a new shell (or: source \"$COMP_DIR/ws\")."
 if [ -f "$LIB_DIR/uninstall.sh" ]; then
-    echo "Désinstallation : curl -fsSL $RAW/uninstall.sh | bash   (ou : $LIB_DIR/uninstall.sh)"
+    echo "Uninstall: ws uninstall   (or: curl -fsSL $RAW/uninstall.sh | bash)"
 else
-    echo "Désinstallation : ./uninstall.sh"
+    echo "Uninstall: ws uninstall   (or: ./uninstall.sh)"
 fi

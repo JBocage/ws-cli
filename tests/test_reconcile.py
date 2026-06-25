@@ -1,4 +1,4 @@
-"""Réconciliation fichier ↔ index : drift, orphelins, purge, fichier externe."""
+"""File ↔ index reconciliation: drift, orphans, purge, external file."""
 import json
 
 import ws
@@ -11,7 +11,7 @@ def _write_ws(home, name, text):
 
 
 def test_file_without_index_entry_shows_empty_meta(home, run, mkdirs):
-    # workspace créé « hors ws » (genre Save Workspace As), sans entrée d'index
+    # workspace created "outside ws" (e.g. Save Workspace As), with no index entry
     _write_ws(home, "external", '{\n  "folders": [ {"path": "/x"} ]\n}\n')
     code, out, err = run("list", "--json")
     data = json.loads(out)
@@ -24,10 +24,10 @@ def test_file_without_index_entry_shows_empty_meta(home, run, mkdirs):
 def test_orphan_index_entry_ignored_in_list(home, run, mkdirs):
     (a,) = mkdirs("a")
     run("new", "real", a)
-    # injecte une entrée orpheline (aucun fichier correspondant)
+    # inject an orphan entry (no matching file)
     idx_path = home / "index.json"
     idx = json.loads(idx_path.read_text())
-    idx["ghost"] = {"description": "fantôme", "tags": ["z"]}
+    idx["ghost"] = {"description": "phantom", "tags": ["z"]}
     idx_path.write_text(json.dumps(idx))
     code, out, err = run("list", "--json")
     data = json.loads(out)
@@ -35,19 +35,19 @@ def test_orphan_index_entry_ignored_in_list(home, run, mkdirs):
 
 
 def test_orphan_preserved_not_destroyed(home, run, mkdirs):
-    # Sécurité des données : une écriture SANS RAPPORT ne doit PAS détruire les
-    # métadonnées d'une entrée dont le fichier est (temporairement) absent.
+    # Data safety: an UNRELATED write must NOT destroy the metadata
+    # of an entry whose file is (temporarily) absent.
     (a,) = mkdirs("a")
     run("new", "real", a)
     idx_path = home / "index.json"
     idx = json.loads(idx_path.read_text())
-    idx["ghost"] = {"tags": ["z"], "description": "à préserver"}
+    idx["ghost"] = {"tags": ["z"], "description": "to preserve"}
     idx_path.write_text(json.dumps(idx))
     run("set", "real", "--desc", "x")
     idx = json.loads(idx_path.read_text())
-    assert idx["ghost"] == {"tags": ["z"], "description": "à préserver"}
+    assert idx["ghost"] == {"tags": ["z"], "description": "to preserve"}
     assert idx["real"]["description"] == "x"
-    # ... mais l'orphelin reste invisible à l'affichage
+    # ... but the orphan stays invisible in the display
     code, out, err = run("list", "--json")
     assert {r["name"] for r in json.loads(out)} == {"real"}
 
@@ -64,7 +64,7 @@ def test_corrupt_index_raises(home, run, mkdirs):
 def test_jsonc_file_listed_without_crash(home, run):
     _write_ws(
         home, "withcomments",
-        '{\n  // commentaire\n  "folders": [ {"path": "/a"}, ],\n}\n',
+        '{\n  // comment\n  "folders": [ {"path": "/a"}, ],\n}\n',
     )
     code, out, err = run("list", "--json")
     assert code == 0

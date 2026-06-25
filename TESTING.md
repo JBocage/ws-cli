@@ -1,177 +1,178 @@
-# Protocole de test — `ws`
+# Test protocol — `ws`
 
-Deux niveaux : **(A)** la suite automatisée, **(B)** un parcours manuel guidé qui
-exerce chaque commande et chaque cas limite de la spec. Tout se fait dans un
-`$WS_HOME` jetable : **aucune** de tes vraies configs n'est touchée.
+Two levels: **(A)** the automated suite, **(B)** a guided manual walkthrough that
+exercises every command and every edge case from the spec. Everything happens in a
+throwaway `$WS_HOME`: **none** of your real configs are touched.
 
 ---
 
-## A. Suite automatisée (pytest)
+## A. Automated suite (pytest)
 
 ```bash
 cd /home/julien/dev-perso/ws
 
-# pytest n'est pas requis au runtime ; on l'exécute via uv (présent sur la machine)
+# pytest is not a runtime dependency; run it via uv (already on the machine)
 uv run --with pytest pytest -v
 ```
 
-Attendu : **42 passed**. Couvre le parser JSONC (préservation commentaires/settings/`name`),
-le CRUD, la réconciliation fichier↔index, l'ouverture (argv de `code` mocké) et la complétion.
+Expected: **71 passed**. Covers the JSONC parser (comments/settings/`name` preservation),
+CRUD, file↔index reconciliation, opening (mocked `code` argv), color, completion, and uninstall.
 
 ---
 
-## B. Parcours manuel
+## B. Manual walkthrough
 
-### 0. Bac à sable isolé
+### 0. Isolated sandbox
 
 ```bash
 cd /home/julien/dev-perso/ws
-export WS_HOME="$(mktemp -d)/ws"      # stockage jetable
+export WS_HOME="$(mktemp -d)/ws"      # throwaway storage
 unset XDG_CONFIG_HOME
 mkdir -p /tmp/ws-demo/api /tmp/ws-demo/infra /tmp/ws-demo/train
-alias ws='./ws.py'                    # ou: ./install.sh puis utilise `ws` directement
+alias ws='./ws.py'                    # or: ./install.sh then use `ws` directly
 ```
 
-> Pour repartir de zéro à tout moment : `rm -rf "$WS_HOME"`.
+> To start over at any time: `rm -rf "$WS_HOME"`.
 
-### 1. Création (`new`)
+### 1. Creation (`new`)
 
 ```bash
 ws new platform /tmp/ws-demo/api /tmp/ws-demo/infra --tag infra --tag platform --desc "API + infra"
-ws new iris ~/dev/iris-train --tag ml --desc "Modèle iris"     # ~ doit être résolu en absolu
-cat "$WS_HOME/workspaces/platform.code-workspace"               # chemins ABSOLUS, settings:{}
-cat "$WS_HOME/index.json"                                       # méta + created
+ws new iris ~/dev/iris-train --tag ml --desc "Iris model"      # ~ must resolve to absolute
+cat "$WS_HOME/workspaces/platform.code-workspace"               # ABSOLUTE paths, settings:{}
+cat "$WS_HOME/index.json"                                       # metadata + created
 ```
 
-À vérifier : fichier `.code-workspace` créé, chemins absolus, `~` résolu, index renseigné.
+Check: `.code-workspace` file created, absolute paths, `~` resolved, index populated.
 
-### 2. Validations & codes de sortie
+### 2. Validation & exit codes
 
 ```bash
-ws new "nom invalide!" /tmp/ws-demo/api ; echo "attendu 2 → $?"   # nom invalide
-ws new platform /tmp/ws-demo/api        ; echo "attendu 4 → $?"   # déjà existant (+ suggère `ws add`)
-ws new brisé /tmp/ws-demo/nexiste-pas   ; echo "attendu 1 → $?"   # dossier manquant, bloqué
-ws new brisé /tmp/ws-demo/nexiste-pas --force ; echo "attendu 0 → $?"   # forcé : créé + avertissement
-ws show fantome                         ; echo "attendu 3 → $?"   # introuvable
+ws new "bad name!" /tmp/ws-demo/api ; echo "expected 2 → $?"     # invalid name
+ws new platform /tmp/ws-demo/api    ; echo "expected 4 → $?"     # already exists (+ suggests `ws add`)
+ws new broken /tmp/ws-demo/nope     ; echo "expected 1 → $?"     # missing folder, blocked
+ws new broken /tmp/ws-demo/nope --force ; echo "expected 0 → $?" # forced: created + warning
+ws show ghost                       ; echo "expected 3 → $?"     # not found
 ```
 
-Codes attendus : `2`, `4`, `1`, `0`, `3`.
+Expected codes: `2`, `4`, `1`, `0`, `3`.
 
-### 3. Liste & détail (`list`, `show`)
+### 3. List & details (`list`, `show`)
 
 ```bash
-ws list                 # colonnes NOM TAGS #DOSSIERS DESCRIPTION
-ws list -v              # + chemins sous chaque ligne (dossiers manquants annotés)
-ws list --tag ml        # filtre : n'affiche que `iris`
+ws list                 # columns NAME TAGS #FOLDERS DESCRIPTION
+ws list -v              # + paths under each row (missing folders annotated)
+ws list --tag ml        # filter: shows only `iris`
 ws list --json | python3 -m json.tool
-ws show platform        # détail lisible + état présent/manquant des dossiers
+ws show platform        # readable details + present/missing state of folders
 ws show platform --json
 ```
 
-### 4. Dossiers (`add`, `rm-folder`) — **préservation chirurgicale**
+### 4. Folders (`add`, `rm-folder`) — **surgical preservation**
 
 ```bash
-# On simule une édition manuelle façon VSCode : commentaires + settings + `name` par dossier
+# Simulate a manual VSCode-style edit: comments + settings + per-folder `name`
 cat > "$WS_HOME/workspaces/platform.code-workspace" <<'EOF'
 {
-  // mon commentaire perso
+  // my personal comment
   "folders": [
     { "path": "/tmp/ws-demo/api", "name": "API" }
   ],
-  "settings": { "editor.tabSize": 2 },  // à préserver
+  "settings": { "editor.tabSize": 2 },  // to preserve
   "extensions": { "recommendations": ["ms-python.python"] }
 }
 EOF
 
-ws add platform /tmp/ws-demo/infra /tmp/ws-demo/api    # /api déjà présent → ignoré (dédup)
+ws add platform /tmp/ws-demo/infra /tmp/ws-demo/api    # /api already present → skipped (dedup)
 cat "$WS_HOME/workspaces/platform.code-workspace"
 ```
 
-À vérifier **impérativement** après `add` :
-- le commentaire `// mon commentaire perso`, `settings`, `extensions` sont **intacts** ;
-- l'entrée existante garde son `"name": "API"` ;
-- `/tmp/ws-demo/infra` est ajouté, `/api` n'est **pas** dupliqué.
+You **must** verify after `add`:
+- the `// my personal comment`, `settings`, `extensions` are **intact**;
+- the existing entry keeps its `"name": "API"`;
+- `/tmp/ws-demo/infra` is added, `/api` is **not** duplicated.
 
 ```bash
-ws rm-folder platform /tmp/ws-demo/api    # retrait par chemin
-ws add platform /tmp/ws-demo/nexiste --force   # dossier manquant : averti mais ajouté
+ws rm-folder platform /tmp/ws-demo/api    # remove by path
+ws add platform /tmp/ws-demo/nope --force # missing folder: warned but added
 ```
 
-### 5. Métadonnées (`set`)
+### 5. Metadata (`set`)
 
 ```bash
-ws set platform --desc "Plateforme complète" --add-tag prod
+ws set platform --desc "Full platform" --add-tag prod
 ws set platform --rm-tag infra
-ws show platform        # description et tags à jour
+ws show platform        # description and tags updated
 ```
 
-### 6. Renommage & suppression (`rename`, `delete`)
+### 6. Rename & delete (`rename`, `delete`)
 
 ```bash
 ws rename platform plat
-ws show plat                                   # méta conservée
-ls "$WS_HOME/workspaces/"                       # plat.code-workspace, plus de platform
-ws rename plat iris ; echo "attendu 4 → $?"     # collision avec un nom existant
-ws delete plat                                  # demande confirmation [y/N] → réponds n puis recommence
-ws delete plat -y                               # sans confirmation
-ws list                                         # `plat` a disparu
+ws show plat                                    # metadata kept
+ls "$WS_HOME/workspaces/"                        # plat.code-workspace, no more platform
+ws rename plat iris ; echo "expected 4 → $?"     # collision with an existing name
+ws delete plat                                   # asks for confirmation [y/N] → answer n, then retry
+ws delete plat -y                                # no confirmation
+ws list                                          # `plat` is gone
 ```
 
-### 7. Réconciliation fichier ↔ index (drift)
+### 7. File ↔ index reconciliation (drift)
 
 ```bash
-# (a) Workspace créé "hors ws" (façon Save Workspace As) : apparaît avec méta vide
-echo '{ "folders": [ {"path": "/tmp/ws-demo/train"} ] }' > "$WS_HOME/workspaces/externe.code-workspace"
-ws list                                         # `externe` listé, sans tags ni description
+# (a) Workspace created "outside ws" (Save Workspace As): shows up with empty metadata
+echo '{ "folders": [ {"path": "/tmp/ws-demo/train"} ] }' > "$WS_HOME/workspaces/external.code-workspace"
+ws list                                          # `external` listed, no tags/description
 
-# (b) Entrée d'index orpheline : ignorée à l'affichage, mais CONSERVÉE (sécurité)
+# (b) Orphan index entry: ignored at display time, but KEPT (data safety)
 python3 - <<'EOF'
 import json, os
 p = os.path.join(os.environ["WS_HOME"], "index.json")
-idx = json.load(open(p)); idx["fantome"] = {"tags": ["x"]}; json.dump(idx, open(p, "w"))
+idx = json.load(open(p)); idx["ghost"] = {"tags": ["x"]}; json.dump(idx, open(p, "w"))
 EOF
-ws list                                         # `fantome` absent de la liste
-ws set externe --desc "adopté" ; cat "$WS_HOME/index.json"   # `fantome` toujours là (non détruit)
+ws list                                          # `ghost` absent from the list
+ws set external --desc "adopted" ; cat "$WS_HOME/index.json"   # `ghost` still there (not destroyed)
 ```
 
-### 8. Ouverture (`open`, `edit`) — nécessite VSCode
+### 8. Opening (`open`, `edit`) — requires VSCode
 
-> Ces commandes lancent réellement `code`. À faire dans une session graphique.
+> These commands actually launch `code`. Do this in a graphical session.
 
 ```bash
-ws open externe          # une seule fenêtre VSCode avec le(s) dossier(s)
-ws open externe -n       # nouvelle fenêtre
-ws show externe --json   # last_opened désormais renseigné
-ws edit externe          # ouvre le .code-workspace dans $EDITOR (défaut: code -r)
-ws open                  # SANS argument → picker fzf, preview = ws show ; Entrée pour ouvrir
+ws open external         # a single VSCode window with the folder(s)
+ws open external -n      # new window
+ws show external --json  # last_opened now populated
+ws edit external         # opens the .code-workspace in $EDITOR (default: code -r)
+ws open                  # NO argument → fzf picker, preview = ws show; Enter to open
 ```
 
-À vérifier : `last_opened` mis à jour après `open` ; le picker `fzf` montre la preview ;
-si `fzf` est absent, repli propre (message + liste).
+Check: `last_opened` updated after `open`; the `fzf` picker shows the preview;
+if `fzf` is absent, clean fallback (message + list).
 
-### 9. Complétion bash
+### 9. bash completion
 
 ```bash
-ws completion bash | bash -n && echo "script de complétion : syntaxe OK"
-ws completion names        # noms (scan du dossier workspaces/)
-ws completion tags         # tags (extraits de l'index)
+ws completion bash | bash -n && echo "completion script: syntax OK"
+ws completion install      # install it into bash-completion
+ws completion names        # names (scan of the workspaces/ directory)
+ws completion tags         # tags (extracted from the index)
 
-# Test interactif (dans un shell bash) :
+# Interactive test (in a bash shell):
 source <(ws completion bash)
-ws op<TAB>                  # complète "open"
-ws open <TAB>              # propose les noms de workspaces
-ws set externe --add-tag <TAB>   # propose les tags existants
-ws new foo <TAB>           # complète des dossiers
+ws op<TAB>                  # completes "open"
+ws open <TAB>              # proposes workspace names
+ws set external --add-tag <TAB>   # proposes existing tags
+ws new foo <TAB>           # completes folders
 ```
 
-### 10. `path` (scripting) & override `$WS_HOME`
+### 10. `path` (scripting) & `$WS_HOME` override
 
 ```bash
-code "$(ws path externe)"   # ouvrir via le chemin imprimé
-WS_HOME=/autre/endroit ws list   # l'override change bien le stockage
+code "$(ws path external)"       # open via the printed path
+WS_HOME=/other/place ws list     # the override changes storage
 ```
 
-### Nettoyage
+### Cleanup
 
 ```bash
 rm -rf "$WS_HOME" /tmp/ws-demo
@@ -180,17 +181,17 @@ unalias ws 2>/dev/null
 
 ---
 
-## Récapitulatif des attendus
+## Expected outcomes summary
 
-| Cas | Attendu |
+| Case | Expected |
 |---|---|
-| Création nominale | fichier `.code-workspace` (chemins absolus) + entrée d'index |
-| Nom invalide | code **2** |
-| Nom déjà pris | code **4** + suggestion `ws add` |
-| Dossier manquant sans `--force` | code **1**, rien créé |
-| Workspace introuvable | code **3** |
-| `add`/`rm-folder` sur fichier commenté | commentaires/settings/`name` **préservés** |
-| Dédup des dossiers | aucun doublon |
-| Fichier sans index | listé, méta vide |
-| Index orphelin | ignoré à l'affichage, **conservé** (jamais détruit par une commande sans rapport) |
-| `open` | lance `code`, met à jour `last_opened` (sauf si `code` échoue) |
+| Nominal creation | `.code-workspace` file (absolute paths) + index entry |
+| Invalid name | code **2** |
+| Name already taken | code **4** + `ws add` suggestion |
+| Missing folder without `--force` | code **1**, nothing created |
+| Workspace not found | code **3** |
+| `add`/`rm-folder` on a commented file | comments/settings/`name` **preserved** |
+| Folder dedup | no duplicates |
+| File without index | listed, empty metadata |
+| Orphan index | ignored at display, **kept** (never destroyed by an unrelated command) |
+| `open` | launches `code`, updates `last_opened` (unless `code` fails) |
