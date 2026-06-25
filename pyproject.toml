@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ws-vscode"
+version = "1.0.0"
+description = "CLI pour créer, administrer et ouvrir des workspaces multi-dossiers VSCode"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+ws = "ws:main"
+
+[tool.setuptools]
+py-modules = ["ws"]

@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Tests / outils
+.pytest_cache/
+.venv/
+uv.lock
