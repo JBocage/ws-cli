@@ -45,13 +45,19 @@ La sortie de `ws list`/`ws show` est colorée en terminal (désactivable via `NO
 ### Désinstallation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/JBocage/ws-cli/main/uninstall.sh | bash
-# depuis un clone : ./uninstall.sh
-# pour supprimer AUSSI vos workspaces/métadonnées : ajoutez --purge
-#   (curl … | bash -s -- --purge)
+ws uninstall            # retire l'exécutable + la complétion ; demande pour vos données
+ws uninstall --purge    # retire aussi vos workspaces et métadonnées
 ```
 
-Installé via uv : `uv tool uninstall ws-vscode`.
+`ws uninstall` détecte le mode d'installation : pour une install `uv`/`pipx`, il vous
+renvoie vers `uv tool uninstall ws-vscode` (resp. `pipx uninstall ws-vscode`).
+
+Si `ws` n'est plus exécutable, le script reste disponible :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JBocage/ws-cli/main/uninstall.sh | bash
+# (ou ./uninstall.sh depuis un clone ; --purge pour supprimer aussi vos données)
+```
 
 ## Commandes
 

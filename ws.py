@@ -63,7 +63,7 @@ WORKSPACE_SUFFIX = ".code-workspace"
 
 SUBCOMMANDS = [
     "new", "open", "list", "show", "edit", "add",
-    "rm-folder", "set", "rename", "delete", "path", "completion",
+    "rm-folder", "set", "rename", "delete", "path", "completion", "uninstall",
 ]
 
 
@@ -998,6 +998,15 @@ def cmd_path(args) -> int:
     return EXIT_OK
 
 
+def bin_dir() -> Path:
+    return Path(os.environ.get("XDG_BIN_HOME") or (Path.home() / ".local" / "bin"))
+
+
+def lib_dir() -> Path:
+    data_home = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(data_home) / "ws-cli"
+
+
 def completion_install_path() -> Path:
     data_home = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
     return Path(data_home) / "bash-completion" / "completions" / "ws"
@@ -1025,6 +1034,62 @@ def cmd_completion(args) -> int:
             print(t)
     else:
         raise UsageError(f"cible de complétion inconnue : {args.what}")
+    return EXIT_OK
+
+
+def cmd_uninstall(args) -> int:
+    self_path = str(Path(__file__).resolve())
+    if "/uv/tools/" in self_path:
+        manager = "uv tool uninstall ws-vscode"
+    elif "/pipx/" in self_path:
+        manager = "pipx uninstall ws-vscode"
+    else:
+        manager = None
+
+    # complétion : retirable dans tous les cas
+    comp = completion_install_path()
+    if comp.exists():
+        comp.unlink()
+        ok(f"complétion retirée : {comp}")
+
+    if manager:
+        warn("ws a été installé via un gestionnaire de paquets ; son exécutable n'est pas retiré ici.")
+        print(f"  Retirez-le avec : {manager}")
+    else:
+        # install.sh / curl : symlink dans ~/.local/bin (+ ws.py dans ws-cli/ en mode distant)
+        link = bin_dir() / "ws"
+        if link.is_symlink():
+            target = os.path.realpath(link)
+            if target.endswith("ws.py"):
+                link.unlink()
+                ok(f"exécutable retiré : {link}")
+            else:
+                warn(f"{link} pointe vers {target} (inconnu) — laissé intact.")
+        elif link.exists():
+            warn(f"{link} n'est pas un symlink (installé via uv/pipx ?) — laissé intact.")
+            print("  Si installé via uv : uv tool uninstall ws-vscode")
+        ld = lib_dir()
+        if ld.is_dir():
+            shutil.rmtree(ld)
+            ok(f"fichiers retirés : {ld}")
+
+    # workspaces / métadonnées : suppression sur demande seulement
+    cfg = ws_home()
+    if cfg.is_dir():
+        if args.purge:
+            shutil.rmtree(cfg)
+            ok(f"configuration supprimée : {cfg}")
+        elif sys.stdin.isatty():
+            resp = input(f"Supprimer aussi vos workspaces et métadonnées ({cfg}) ? [y/N] ").strip().lower()
+            if resp in ("y", "yes", "o", "oui"):
+                shutil.rmtree(cfg)
+                ok(f"configuration supprimée : {cfg}")
+            else:
+                print(f"· configuration conservée : {cfg}")
+        else:
+            print(f"· configuration conservée : {cfg} (--purge pour la supprimer)")
+
+    print("Désinstallé.")
     return EXIT_OK
 
 
@@ -1065,7 +1130,7 @@ _ws() {
     local cur prev cmd
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    local subcommands="new open list show edit add rm-folder set rename delete path completion"
+    local subcommands="new open list show edit add rm-folder set rename delete path completion uninstall"
 
     if [ "$COMP_CWORD" -eq 1 ]; then
         COMPREPLY=( $(compgen -W "$subcommands" -- "$cur") )
@@ -1200,6 +1265,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("what", choices=["bash", "install", "names", "tags"],
                     help="bash: imprime le script ; install: le pose dans bash-completion")
     sp.set_defaults(func=cmd_completion)
+
+    sp = sub.add_parser("uninstall", help="désinstalle ws (exécutable + complétion)")
+    sp.add_argument("--purge", action="store_true",
+                    help="supprime aussi vos workspaces et métadonnées")
+    sp.set_defaults(func=cmd_uninstall)
 
     return p
 

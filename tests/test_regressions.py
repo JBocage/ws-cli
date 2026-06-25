@@ -315,3 +315,42 @@ def test_completion_hint_silent_when_not_tty(home, run, mkdirs):
     a, = mkdirs("a")
     code, out, err = run("new", "demo", a)  # capsys = non-TTY
     assert "completion install" not in err
+
+
+# --- ws uninstall : retire l'install, garde la config (non-tty) ------------ #
+def test_uninstall_removes_artifacts_keeps_config(home, run, mkdirs):
+    run("completion", "install")                 # pose la complétion (XDG_DATA_HOME isolé)
+    comp = ws.completion_install_path()
+    assert comp.exists()
+    lib = ws.lib_dir()                           # simule l'artefact d'install distante
+    lib.mkdir(parents=True, exist_ok=True)
+    (lib / "ws.py").write_text("# faux ws.py\n")
+    link = ws.bin_dir() / "ws"                   # simule le symlink d'install
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(lib / "ws.py")
+    a, = mkdirs("a")
+    run("new", "demo", a)
+    assert ws.ws_home().is_dir()
+
+    code, out, err = run("uninstall")            # non-tty → garde la config
+    assert code == 0
+    assert not link.exists()
+    assert not lib.exists()
+    assert not comp.exists()
+    assert ws.ws_home().is_dir()                 # données conservées
+
+
+def test_uninstall_purge_removes_config(home, run, mkdirs):
+    a, = mkdirs("a")
+    run("new", "demo", a)
+    code, out, err = run("uninstall", "--purge")
+    assert code == 0
+    assert not ws.ws_home().exists()
+
+
+def test_uninstall_detects_uv_install(home, run, monkeypatch):
+    fake = "/home/u/.local/share/uv/tools/ws-vscode/lib/python3.12/site-packages/ws.py"
+    monkeypatch.setattr(ws, "__file__", fake)
+    code, out, err = run("uninstall")
+    assert code == 0
+    assert "uv tool uninstall ws-vscode" in out

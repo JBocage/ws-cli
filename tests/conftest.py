@@ -14,6 +14,7 @@ def home(tmp_path, monkeypatch):
     h = tmp_path / "wshome"
     monkeypatch.setenv("WS_HOME", str(h))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdgdata"))
+    monkeypatch.setenv("XDG_BIN_HOME", str(tmp_path / "bin"))
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.delenv("WS_COLOR", raising=False)
