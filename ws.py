@@ -1274,30 +1274,6 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _maybe_hint_completion(command: str) -> None:
-    """Affiche UNE fois l'astuce d'autocomplétion (terminal interactif uniquement).
-
-    Comble l'absence de message post-install d'uv/pipx : c'est `ws` qui guide
-    l'utilisateur. Silencieux en mode script (non-TTY), pour la commande
-    `completion` elle-même, et dès que la complétion est posée ou déjà signalée.
-    """
-    if command == "completion":
-        return
-    if not (hasattr(sys.stderr, "isatty") and sys.stderr.isatty()):
-        return
-    try:
-        marker = ws_home() / ".hints_shown"
-        if marker.exists() or completion_install_path().exists():
-            return
-        msg = ("Astuce : activez l'autocomplétion bash avec « ws completion install » "
-               "(ce message ne s'affiche qu'une fois)")
-        print(paint("ℹ " + msg, "dim", enabled=_use_color(sys.stderr)), file=sys.stderr)
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text("")
-    except OSError:
-        pass
-
-
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -1305,7 +1281,7 @@ def main(argv=None) -> int:
         parser.print_help()
         return EXIT_USAGE
     try:
-        rc = args.func(args)
+        return args.func(args)
     except WsError as exc:
         print(f"ws: {exc.message}", file=sys.stderr)
         return exc.code
@@ -1315,8 +1291,6 @@ def main(argv=None) -> int:
     except (OSError, ValueError) as exc:
         print(f"ws: erreur inattendue : {exc}", file=sys.stderr)
         return EXIT_ERROR
-    _maybe_hint_completion(args.command)
-    return rc
 
 
 if __name__ == "__main__":
