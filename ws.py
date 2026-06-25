@@ -631,8 +631,38 @@ def now_iso() -> str:
 # --------------------------------------------------------------------------- #
 # Helpers d'affichage / commun
 # --------------------------------------------------------------------------- #
+# --- couleur (TTY uniquement ; respecte $NO_COLOR, et $WS_COLOR=always) ----- #
+_ANSI = {
+    "reset": "\033[0m", "bold": "\033[1m", "dim": "\033[2m",
+    "red": "\033[31m", "green": "\033[32m", "yellow": "\033[33m", "cyan": "\033[36m",
+}
+
+
+def _use_color(stream=None) -> bool:
+    stream = stream if stream is not None else sys.stdout
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("WS_COLOR") == "always":
+        return True
+    return hasattr(stream, "isatty") and stream.isatty()
+
+
+def paint(s: str, *styles: str, enabled: bool | None = None) -> str:
+    if enabled is None:
+        enabled = _use_color()
+    if not enabled or not styles:
+        return s
+    prefix = "".join(_ANSI[st] for st in styles)
+    return f"{prefix}{s}{_ANSI['reset']}"
+
+
 def warn(msg: str) -> None:
-    print(f"⚠ {msg}", file=sys.stderr)
+    prefix = paint("⚠", "yellow", enabled=_use_color(sys.stderr))
+    print(f"{prefix} {msg}", file=sys.stderr)
+
+
+def ok(msg: str) -> None:
+    print(f"{paint('✓', 'green')} {msg}")
 
 
 def validate_name(name: str) -> None:
@@ -710,7 +740,7 @@ def cmd_new(args) -> int:
         idx[name] = meta
         save_index(idx)
 
-    print(f"✓ workspace créé : {name} ({len(folders)} dossier(s))")
+    ok(f"workspace créé : {name} ({len(folders)} dossier(s))")
     if args.open:
         open_workspace(name, new_window=False, reuse=False)
     return EXIT_OK
@@ -765,14 +795,21 @@ def cmd_list(args) -> int:
 
     name_w = max(len("NOM"), max(len(r["name"]) for r in rows))
     tags_w = max(len("TAGS"), max(len(",".join(r["tags"])) for r in rows))
-    print(f"{'NOM':<{name_w}}  {'TAGS':<{tags_w}}  {'#':>3}  DESCRIPTION")
+    col = _use_color()
+    header = f"{'NOM':<{name_w}}  {'TAGS':<{tags_w}}  {'#':>3}  DESCRIPTION"
+    print(paint(header, "dim", enabled=col))
     for r in rows:
         n = "?" if r["n_folders"] is None else str(r["n_folders"])
-        print(f"{r['name']:<{name_w}}  {','.join(r['tags']):<{tags_w}}  {n:>3}  {r['description']}")
+        # padding AVANT colorisation pour préserver l'alignement
+        name_cell = paint(f"{r['name']:<{name_w}}", "cyan", "bold", enabled=col)
+        tags_cell = paint(f"{','.join(r['tags']):<{tags_w}}", "yellow", enabled=col)
+        print(f"{name_cell}  {tags_cell}  {n:>3}  {r['description']}")
         if args.verbose and r["folders"]:
             for p in r["folders"]:
-                mark = "" if os.path.isdir(p) else "  (manquant)"
-                print(f"    {p}{mark}")
+                if os.path.isdir(p):
+                    print(f"    {p}")
+                else:
+                    print(f"    {paint(p + '  (manquant)', 'red', enabled=col)}")
     return EXIT_OK
 
 
@@ -795,20 +832,23 @@ def cmd_show(args) -> int:
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return EXIT_OK
 
-    print(f"{args.name}")
+    col = _use_color()
+    print(paint(args.name, "cyan", "bold", enabled=col))
     print(f"  fichier      : {path}")
     if meta.get("description"):
         print(f"  description  : {meta['description']}")
     if meta.get("tags"):
-        print(f"  tags         : {', '.join(meta['tags'])}")
+        print(f"  tags         : {paint(', '.join(meta['tags']), 'yellow', enabled=col)}")
     if meta.get("created"):
         print(f"  créé         : {meta['created']}")
     if meta.get("last_opened"):
         print(f"  dernier open : {meta['last_opened']}")
     print(f"  dossiers ({len(paths)}) :")
     for p in paths:
-        mark = "" if os.path.isdir(p) else "  (manquant)"
-        print(f"    - {p}{mark}")
+        if os.path.isdir(p):
+            print(f"    - {p}")
+        else:
+            print(f"    - {paint(p + '  (manquant)', 'red', enabled=col)}")
     return EXIT_OK
 
 
@@ -854,7 +894,7 @@ def cmd_add(args) -> int:
             # entrées existantes préservées telles quelles, nouvelles ajoutées
             new_entries = entries + [{"path": p} for p in to_add]
             atomic_write(path, splice_folders(text, new_entries))
-    print(f"✓ {len(to_add)} dossier(s) ajouté(s) à {args.name}")
+    ok(f"{len(to_add)} dossier(s) ajouté(s) à {args.name}")
     return EXIT_OK
 
 
@@ -881,7 +921,7 @@ def cmd_rm_folder(args) -> int:
 
         if removed:
             atomic_write(path, splice_folders(text, kept))
-    print(f"✓ {removed} dossier(s) retiré(s) de {args.name}")
+    ok(f"{removed} dossier(s) retiré(s) de {args.name}")
     return EXIT_OK
 
 
@@ -908,7 +948,7 @@ def cmd_set(args) -> int:
         meta["tags"] = tags
         idx[args.name] = meta
         save_index(idx)
-    print(f"✓ métadonnées mises à jour : {args.name}")
+    ok(f"métadonnées mises à jour : {args.name}")
     return EXIT_OK
 
 
@@ -925,7 +965,7 @@ def cmd_rename(args) -> int:
         if old in idx:
             idx[new] = idx.pop(old)
         save_index(idx)
-    print(f"✓ renommé : {old} → {new}")
+    ok(f"renommé : {old} → {new}")
     return EXIT_OK
 
 
@@ -947,7 +987,7 @@ def cmd_delete(args) -> int:
         idx = load_index()
         idx.pop(name, None)
         save_index(idx)
-    print(f"✓ supprimé : {name}")
+    ok(f"supprimé : {name}")
     return EXIT_OK
 
 
@@ -958,9 +998,20 @@ def cmd_path(args) -> int:
     return EXIT_OK
 
 
+def completion_install_path() -> Path:
+    data_home = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(data_home) / "bash-completion" / "completions" / "ws"
+
+
 def cmd_completion(args) -> int:
     if args.what == "bash":
         print(BASH_COMPLETION, end="")
+    elif args.what == "install":
+        dest = completion_install_path()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(BASH_COMPLETION, encoding="utf-8")
+        ok(f"complétion bash installée : {dest}")
+        print(f"Activez-la maintenant : source {dest}   (ou ouvrez un nouveau shell)")
     elif args.what == "names":
         for n in list_workspace_names():
             print(n)
@@ -1058,7 +1109,7 @@ _ws() {
             ;;
         completion)
             if [ "$COMP_CWORD" -eq 2 ]; then
-                COMPREPLY=( $(compgen -W "bash names tags" -- "$cur") )
+                COMPREPLY=( $(compgen -W "bash install names tags" -- "$cur") )
                 return 0
             fi
             ;;
@@ -1145,7 +1196,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_path)
 
     sp = sub.add_parser("completion", help="complétion shell")
-    sp.add_argument("what", choices=["bash", "names", "tags"])
+    sp.add_argument("what", choices=["bash", "install", "names", "tags"],
+                    help="bash: imprime le script ; install: le pose dans bash-completion")
     sp.set_defaults(func=cmd_completion)
 
     return p

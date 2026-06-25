@@ -241,3 +241,42 @@ def test_index_lock_reentrant(home):
             assert ws._lock_depth == 2
     assert ws._lock_depth == 0
     assert ws._lock_fd is None
+
+
+# --- completion install : pose le fichier dans bash-completion ------------- #
+def test_completion_install(home, run, monkeypatch, tmp_path):
+    data = tmp_path / "xdgdata"
+    monkeypatch.setenv("XDG_DATA_HOME", str(data))
+    code, out, err = run("completion", "install")
+    assert code == 0
+    dest = data / "bash-completion" / "completions" / "ws"
+    assert dest.is_file()
+    assert "complete -F _ws ws" in dest.read_text()
+
+
+# --- couleur : WS_COLOR=always active, NO_COLOR neutralise, JSON jamais ----- #
+def test_list_color_forced(home, run, mkdirs, monkeypatch):
+    a, = mkdirs("a")
+    run("new", "demo", a, "--tag", "ml")
+    monkeypatch.setenv("WS_COLOR", "always")
+    code, out, err = run("list")
+    assert "\033[" in out
+
+
+def test_no_color_overrides_ws_color(home, run, mkdirs, monkeypatch):
+    a, = mkdirs("a")
+    run("new", "demo", a)
+    monkeypatch.setenv("WS_COLOR", "always")
+    monkeypatch.setenv("NO_COLOR", "1")
+    code, out, err = run("list")
+    assert "\033[" not in out
+
+
+def test_json_never_colored(home, run, mkdirs, monkeypatch):
+    a, = mkdirs("a")
+    run("new", "demo", a, "--tag", "ml")
+    monkeypatch.setenv("WS_COLOR", "always")
+    _, out_list, _ = run("list", "--json")
+    _, out_show, _ = run("show", "demo", "--json")
+    assert "\033[" not in out_list
+    assert "\033[" not in out_show

@@ -27,9 +27,14 @@ Alternative (machines avec `uv` ou `pipx`) :
 ```bash
 uv tool install git+https://github.com/JBocage/ws-cli
 # ou : pipx install git+https://github.com/JBocage/ws-cli
+ws completion install        # pose la complétion bash (uv/pipx ne le font pas)
 ```
 
+`uv tool install` n'installe que l'exécutable : lancez `ws completion install`
+une fois pour activer l'autocomplétion bash, puis ouvrez un nouveau shell.
+
 Aucune dépendance tierce au runtime — Python 3.10+ et la stdlib suffisent.
+La sortie de `ws list`/`ws show` est colorée en terminal (désactivable via `NO_COLOR=1`).
 
 ### Désinstallation
 
