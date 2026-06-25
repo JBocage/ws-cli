@@ -1193,7 +1193,6 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="ws",
         description="Gestionnaire de workspaces VSCode multi-dossiers.",
-        epilog="Autocomplétion bash : lancez « ws completion install » une fois après l'installation.",
     )
     sub = p.add_subparsers(dest="command", metavar="<commande>")
 
