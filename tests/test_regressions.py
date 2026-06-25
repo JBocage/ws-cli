@@ -280,3 +280,38 @@ def test_json_never_colored(home, run, mkdirs, monkeypatch):
     _, out_show, _ = run("show", "demo", "--json")
     assert "\033[" not in out_list
     assert "\033[" not in out_show
+
+
+# --- astuce d'autocomplétion : une fois, en TTY seulement ------------------- #
+def test_completion_hint_shown_once_on_tty(home, monkeypatch):
+    import io
+
+    class FakeTTY(io.StringIO):
+        def isatty(self):
+            return True
+
+    fake = FakeTTY()
+    monkeypatch.setattr(ws.sys, "stderr", fake)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    ws._maybe_hint_completion("list")   # 1er appel → affiché
+    ws._maybe_hint_completion("list")   # 2e appel → silencieux (marqueur posé)
+    assert fake.getvalue().count("ws completion install") == 1
+
+
+def test_completion_hint_silent_for_completion_command(home, monkeypatch):
+    import io
+
+    class FakeTTY(io.StringIO):
+        def isatty(self):
+            return True
+
+    fake = FakeTTY()
+    monkeypatch.setattr(ws.sys, "stderr", fake)
+    ws._maybe_hint_completion("completion")  # ne nag pas quand on gère la complétion
+    assert fake.getvalue() == ""
+
+
+def test_completion_hint_silent_when_not_tty(home, run, mkdirs):
+    a, = mkdirs("a")
+    code, out, err = run("new", "demo", a)  # capsys = non-TTY
+    assert "completion install" not in err

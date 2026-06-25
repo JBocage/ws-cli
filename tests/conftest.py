@@ -13,7 +13,10 @@ def home(tmp_path, monkeypatch):
     """Isole le stockage dans un WS_HOME temporaire et neutralise XDG."""
     h = tmp_path / "wshome"
     monkeypatch.setenv("WS_HOME", str(h))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdgdata"))
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("WS_COLOR", raising=False)
     return h
 
 
